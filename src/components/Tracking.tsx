@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Save, Scale, Ruler, Heart, Activity, Moon, Zap, Coffee, MessageSquare } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { storage } from '../modules/storage/StorageService';
 
 export default function Tracking() {
   const [formType, setFormType] = useState<'daily' | 'weekly'>('daily');

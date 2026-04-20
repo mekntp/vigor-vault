@@ -1,0 +1,9 @@
+{
+  "name": "Vigor Vault",
+  "description": "A private, male performance-focused fitness application designed to improve stamina, body composition, and measurable sexual fitness outcomes.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": []
+}

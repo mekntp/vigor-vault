@@ -10,6 +10,8 @@ interface WorkoutContextType {
   isActive: boolean;
   isPaused: boolean;
   isWorkoutComplete: boolean;
+  startTime: number | null;
+  duration: number;
   startWorkout: (day: DayPlan) => void;
   pauseWorkout: () => void;
   resumeWorkout: () => void;
@@ -29,6 +31,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [isPaused, setIsPaused] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [isWorkoutComplete, setIsWorkoutComplete] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [duration, setDuration] = useState<number>(0);
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -40,6 +44,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setIsActive(true);
     setIsPaused(false);
     setIsWorkoutComplete(false);
+    setStartTime(Date.now());
+    setDuration(0);
     
     const firstExercise = day.blocks[0]?.exercises[0];
     if (firstExercise?.type === 'time' || firstExercise?.type === 'rest') {
@@ -76,6 +82,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           if (nextEx.type === 'time' || nextEx.type === 'rest') setTimeLeft(nextEx.value);
         } else {
           // Finished
+          const finishTime = Date.now();
+          if (startTime) {
+            setDuration(Math.floor((finishTime - startTime) / 1000));
+          }
           setIsWorkoutComplete(true);
           setIsActive(false);
         }
@@ -119,6 +129,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     <WorkoutContext.Provider value={{
       currentDay, currentExerciseIndex, currentBlockIndex, currentRound,
       timeLeft, isActive, isPaused, isWorkoutComplete,
+      startTime, duration,
       startWorkout, pauseWorkout, resumeWorkout, nextExercise, prevExercise, quitWorkout
     }}>
       {children}

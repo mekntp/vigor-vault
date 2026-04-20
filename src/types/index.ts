@@ -16,6 +16,7 @@ export interface WorkoutBlock {
 
 export interface WorkoutPlan {
   planId: string;
+  id?: string;
   title: string;
   targetAudience: string;
   primaryGoals: string[];
@@ -23,6 +24,8 @@ export interface WorkoutPlan {
   progression: Record<string, string>;
   schedule: DayPlan[];
   transferBenefits: Record<string, string>;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface DayPlan {

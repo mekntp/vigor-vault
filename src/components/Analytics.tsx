@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
-import { LineChart, Line, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, Ruler, Heart, Award } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { LineChart, Line, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis } from 'recharts';
+import { TrendingUp, Ruler, Heart, Award, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
+import { storage } from '../modules/storage/StorageService';
+import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 
 const mockData = [
   { date: 'Mon', stamina: 40, weight: 85, hr: 72 },
@@ -14,6 +16,36 @@ const mockData = [
 ];
 
 export default function Analytics() {
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    storage.getAllLogs().then(setLogs);
+  }, []);
+
+  const volumeData = useMemo(() => {
+    // Generate last 7 days
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(new Date(), 6 - i);
+      return {
+        date: format(date, 'EEE'),
+        fullDate: date,
+        minutes: 0
+      };
+    });
+
+    logs.forEach(log => {
+      if (log.type === 'workout' && log.payload?.duration) {
+        const logDate = new Date(log.createdAt || log.payload.completedAt);
+        const dayMatch = last7Days.find(d => isSameDay(d.fullDate, logDate));
+        if (dayMatch) {
+          dayMatch.minutes += Math.floor(log.payload.duration / 60);
+        }
+      }
+    });
+
+    return last7Days;
+  }, [logs]);
+
   const heatmap = useMemo(() => {
     return Array.from({ length: 28 }, (_, i) => ({
       day: i,
@@ -131,6 +163,43 @@ export default function Analytics() {
            </div>
         </section>
       </div>
+
+      {/* TRAINING VOLUME: Real Data */}
+      <section className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] shadow-2xl">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 rounded-[1rem] bg-black border border-zinc-800 flex items-center justify-center text-primary shadow-xl">
+            <Clock size={20} />
+          </div>
+          <div>
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Training Volume</h3>
+            <p className="text-lg font-bold text-white uppercase tracking-tight">Active Minutes / Week</p>
+          </div>
+        </div>
+
+        <div className="h-48 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={volumeData}>
+              <XAxis 
+                dataKey="date" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#4b5563', fontSize: 10, fontWeight: 'bold' }} 
+                dy={10}
+              />
+              <Tooltip 
+                cursor={{ fill: '#27272a', opacity: 0.1 }}
+                contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '12px', fontSize: '10px', color: '#fff' }}
+              />
+              <Bar 
+                dataKey="minutes" 
+                fill="#f97316" 
+                radius={[6, 6, 0, 0]} 
+                barSize={32}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
 
       {/* Insight Notice (Bento Style) */}
       <motion.div 

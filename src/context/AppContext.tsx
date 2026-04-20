@@ -19,26 +19,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
 
   const refreshPlans = async () => {
-    const dbPlans = await storage.getPlans();
-    if (dbPlans.length === 0) {
-      // Seed default plans if none exist
+    let dbPlans = await storage.getPlans();
+    
+    // Always ensure the new optimized plan is available for the user
+    const hasOptimized = dbPlans.find(p => p.id === 'phase-1-optimized' || (p as any).planId === 'phase-1-optimized');
+    
+    if (dbPlans.length === 0 || !hasOptimized) {
+      // Seed default plans if none exist or if the new optimized one is missing
       for (const plan of DEFAULT_PLANS) {
-        await storage.setPlan({
-          ...plan,
-          id: plan.planId,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        } as any);
+        // If it's the missing one, or if no plans at all, add it
+        if (dbPlans.length === 0 || !dbPlans.find(p => p.id === plan.planId)) {
+          await storage.setPlan({
+            ...plan,
+            id: plan.planId,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          } as any);
+        }
       }
-      const seeded = await storage.getPlans();
-      setPlans(seeded);
-      setActivePlanId(seeded[0]?.id || seeded[0]?.planId || null);
-    } else {
-      setPlans(dbPlans);
-      // Try to get from local storage preferred plan
-      const savedActiveId = localStorage.getItem('activePlanId');
-      setActivePlanId(savedActiveId || dbPlans[0]?.id || null);
+      dbPlans = await storage.getPlans();
     }
+
+    setPlans(dbPlans);
+    // Try to get from local storage preferred plan
+    const savedActiveId = localStorage.getItem('activePlanId');
+    setActivePlanId(savedActiveId || dbPlans.find(p => p.id === 'phase-1-optimized')?.id || dbPlans[0]?.id || null);
   };
 
   useEffect(() => {

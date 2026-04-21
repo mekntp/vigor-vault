@@ -9,32 +9,35 @@ import { WorkoutPlan } from '../types';
 const ExerciseRow = ({ planId, dIdx, bIdx, eIdx, exercise, onUpdate }: any) => {
   const [name, setName] = useState(exercise.name);
   const [value, setValue] = useState(exercise.value || '');
+  const [instructions, setInstructions] = useState(exercise.instructions || '');
+  const [type, setType] = useState(exercise.type || 'reps');
+  const [unit, setUnit] = useState(exercise.unit || 'reps');
   const [isOpen, setIsOpen] = useState(false);
-  const hasDetails = !!(exercise.instructions || exercise.focus || exercise.breathing);
 
   useEffect(() => {
     setName(exercise.name);
     setValue(exercise.value || '');
+    setInstructions(exercise.instructions || '');
+    setType(exercise.type || 'reps');
+    setUnit(exercise.unit || 'reps');
   }, [exercise]);
 
   const handleBlur = () => {
-    if (name !== exercise.name || Number(value) !== exercise.value) {
-      onUpdate(planId, dIdx, bIdx, eIdx, { name, value: Number(value) });
+    if (name !== exercise.name || Number(value) !== exercise.value || instructions !== exercise.instructions || type !== exercise.type || unit !== exercise.unit) {
+      onUpdate(planId, dIdx, bIdx, eIdx, { name, value: Number(value), instructions, type, unit });
     }
   };
 
   return (
     <div className="flex flex-col bg-black border border-zinc-800 rounded-xl group focus-within:border-primary/50 transition-colors overflow-hidden">
       <div className="flex items-center gap-2 p-2.5">
-        <div className="w-4 h-4 flex items-center justify-center">
-          {hasDetails && (
+        <div className="w-5 h-5 shrink-0 flex items-center justify-center">
             <button 
               onClick={() => setIsOpen(!isOpen)} 
               className="text-slate-600 hover:text-white p-1 transition-colors"
             >
               {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
-          )}
         </div>
         <div className={cn(
           "w-1.5 h-6 rounded-full",
@@ -70,13 +73,48 @@ const ExerciseRow = ({ planId, dIdx, bIdx, eIdx, exercise, onUpdate }: any) => {
             exit={{ height: 0, opacity: 0 }}
             className="border-t border-zinc-800 bg-zinc-900/50"
           >
-            <div className="p-4 space-y-3">
-              {exercise.instructions && (
-                <div>
-                  <h6 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Instructions</h6>
-                  <p className="text-xs text-slate-300 font-medium leading-relaxed">{exercise.instructions}</p>
+            <div className="p-4 space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <h6 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Target Type</h6>
+                  <select 
+                    value={type}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      const newUnit = newType === 'time' || newType === 'rest' ? 'sec' : 'reps';
+                      setType(newType);
+                      setUnit(newUnit);
+                      onUpdate(planId, dIdx, bIdx, eIdx, { ...exercise, type: newType, unit: newUnit, value: Number(value), instructions });
+                    }}
+                    className="w-full bg-black/50 border border-zinc-800 rounded-lg text-xs py-2 px-3 text-slate-300 font-medium outline-none focus:border-primary appearance-none"
+                  >
+                    <option value="reps">Reps</option>
+                    <option value="time">Time</option>
+                    <option value="rest">Rest</option>
+                  </select>
                 </div>
-              )}
+                <div className="w-24">
+                  <h6 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Amount</h6>
+                  <input 
+                    type="number"
+                    value={value}
+                    onChange={e => setValue(e.target.value)}
+                    onBlur={handleBlur}
+                    className="w-full bg-black/50 border border-zinc-800 rounded-lg text-xs py-2 px-3 text-white font-bold outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div>
+                <h6 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Instructions</h6>
+                <textarea 
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  onBlur={handleBlur}
+                  className="w-full bg-black/50 border border-zinc-800 rounded-lg text-xs py-2 px-3 text-slate-300 font-medium leading-relaxed resize-none focus:border-primary transition-colors outline-none block"
+                  rows={2}
+                  placeholder="Add instructions, technique cues, etc..."
+                />
+              </div>
               {exercise.focus && (
                 <div>
                   <h6 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Focus</h6>
@@ -170,6 +208,7 @@ const DayView = ({ day, planId, dIdx, handleUpdateExercise }: any) => {
 export default function Planner() {
   const { plans, activePlanId, setActivePlan, refreshPlans } = useApp();
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(activePlanId);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const toggleExpand = (planId: string) => {
     setExpandedPlanId(prev => prev === planId ? null : planId);
@@ -185,6 +224,9 @@ export default function Planner() {
     
     if (updates.name !== undefined) ex.name = updates.name;
     if (updates.value !== undefined) ex.value = updates.value;
+    if (updates.instructions !== undefined) ex.instructions = updates.instructions;
+    if (updates.type !== undefined) ex.type = updates.type;
+    if (updates.unit !== undefined) ex.unit = updates.unit;
     
     updatedPlan.updatedAt = Date.now();
     await storage.setPlan(updatedPlan);
@@ -238,9 +280,31 @@ export default function Planner() {
                     {isActive && (
                       <div className="px-3 py-1 bg-primary text-black text-[9px] font-black rounded-full uppercase tracking-widest">Active</div>
                     )}
-                    <button className="text-slate-500 hover:text-white p-1">
-                      {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </button>
+                    <div className="flex items-center gap-1 mt-auto" onClick={e => e.stopPropagation()}>
+                      {deletingId === planId ? (
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            storage.deletePlan(planId).then(() => { refreshPlans(); setDeletingId(null); }); 
+                          }} 
+                          className="text-white font-bold text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-md bg-red-500/80 hover:bg-red-500 transition-colors shadow-lg"
+                        >
+                          Confirm
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setDeletingId(planId); 
+                            setTimeout(() => setDeletingId(null), 3000); 
+                          }} 
+                          className="bg-black/40 border border-zinc-800/50 text-slate-500 hover:text-red-500 p-2 rounded-lg hover:bg-zinc-800 transition-colors"
+                          title="Delete Plan"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
